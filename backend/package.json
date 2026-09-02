@@ -1,0 +1,27 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Hajj Feedback Backend",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.0.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "googleapis": "^173.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.3.0",
+    "mysql2": "^3.14.3",
+    "pdfkit": "^0.19.1",
+    "recharts": "^3.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}
