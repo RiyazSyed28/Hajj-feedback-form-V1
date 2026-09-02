@@ -1,3 +1,4 @@
+
 import api from "../../api/api";
 
 import toast from "react-hot-toast";
@@ -284,12 +285,17 @@ function FeedbackContent() {
 
 
         /*
-         * Send recording to backend
+         * Send recording to production/development backend
+         *
+         * VITE_API_URL should be:
+         *
+         * https://YOUR-RENDER-BACKEND.onrender.com/api
+         *
          */
 
         const response =
             await fetch(
-                "http://localhost:5000/api/recordings/upload",
+                `${import.meta.env.VITE_API_URL}/recordings/upload`,
                 {
                     method: "POST",
                     body: formData,
@@ -1049,3 +1055,4 @@ export default function Feedback() {
         </LanguageProvider>
     );
 }
+

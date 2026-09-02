@@ -19,9 +19,27 @@ dotenv.config();
 |--------------------------------------------------------------------------
 */
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "https://lavender-aardvark-116528.hostingersite.com",
+];
+
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: function (origin, callback) {
+            // Allow requests with no origin
+            // (Postman, server-to-server requests, etc.)
+            if (!origin) {
+                return callback(null, true);
+            }
+
+            if (allowedOrigins.includes(origin)) {
+                return callback(null, true);
+            }
+
+            return callback(new Error("Not allowed by CORS"));
+        },
+        credentials: true,
     })
 );
 
@@ -57,7 +75,7 @@ app.use("/api/recordings", recordingsRouter);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
 });
 
