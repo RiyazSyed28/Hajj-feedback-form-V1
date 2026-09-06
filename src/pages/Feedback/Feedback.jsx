@@ -236,7 +236,7 @@ function FeedbackContent() {
 
         const extension =
             blob.type ===
-            "audio/mp4"
+                "audio/mp4"
                 ? "mp4"
                 : "webm";
 
@@ -310,7 +310,7 @@ function FeedbackContent() {
         if (!response.ok) {
             throw new Error(
                 result.message ||
-                    "Recording upload failed."
+                "Recording upload failed."
             );
         }
 
@@ -331,14 +331,14 @@ function FeedbackContent() {
         const coverNumber =
             String(
                 data.coverNumber ||
-                    ""
+                ""
             ).trim();
 
 
         const travelAgency =
             String(
                 data.travelAgency ||
-                    ""
+                ""
             ).trim();
 
 
@@ -359,7 +359,7 @@ function FeedbackContent() {
                         "Recording"
                     ) &&
                     data[key] instanceof
-                        Blob
+                    Blob
             );
 
 
@@ -378,7 +378,7 @@ function FeedbackContent() {
 
         for (
             const recordingKey of
-                recordingFields
+            recordingFields
         ) {
             const blob =
                 data[recordingKey];
@@ -500,7 +500,7 @@ function FeedbackContent() {
             ) {
                 throw new Error(
                     response.data.message ||
-                        t.submissionFailed
+                    t.submissionFailed
                 );
             }
 
@@ -520,7 +520,7 @@ function FeedbackContent() {
                             "Recording"
                         ) &&
                         data[key] instanceof
-                            Blob
+                        Blob
                 );
 
 
@@ -583,8 +583,8 @@ function FeedbackContent() {
                 error.response
                     ?.data
                     ?.message ||
-                    error.message ||
-                    t.submissionFailed
+                error.message ||
+                t.submissionFailed
             );
         } finally {
             setLoading(false);
@@ -638,6 +638,33 @@ function FeedbackContent() {
             className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 py-20"
         >
             <div className="max-w-6xl mx-auto px-6">
+                {loading && (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="flex flex-col items-center justify-center text-center px-8">
+                            {/* Spinner */}
+                            <div className="relative w-20 h-20 mb-6">
+                                <div className="absolute inset-0 rounded-full border-4 border-white/30"></div>
+
+                                <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-white animate-spin"></div>
+                            </div>
+
+                            {/* Main text */}
+                            <h2 className="text-2xl font-bold text-white mb-2">
+                                Submitting your feedback...
+                            </h2>
+
+                            {/* Secondary text */}
+                            <p className="text-sm text-white/80 max-w-sm">
+                                Please wait while we securely save your feedback.
+                            </p>
+
+                            {/* Prevent accidental interaction */}
+                            <p className="text-xs text-white/60 mt-4">
+                                Please don't close or refresh this page.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 <FeedbackHeader />
 
@@ -692,7 +719,7 @@ function FeedbackContent() {
                             const valid =
                                 await trigger(
                                     stepValidation[
-                                        i
+                                    i
                                     ] || []
                                 );
 
@@ -802,7 +829,7 @@ function FeedbackContent() {
                                 disabled
                                 value={
                                     language ===
-                                    "ur"
+                                        "ur"
                                         ? "Urdu"
                                         : "English"
                                 }
@@ -905,7 +932,7 @@ function FeedbackContent() {
                                 ) {
                                     setStep(
                                         step -
-                                            1
+                                        1
                                     );
 
 
@@ -922,7 +949,7 @@ function FeedbackContent() {
                             next={async () => {
                                 let fields =
                                     stepValidation[
-                                        step
+                                    step
                                     ] || [];
 
 
@@ -1000,7 +1027,7 @@ function FeedbackContent() {
                                             if (
                                                 prev.includes(
                                                     step +
-                                                        1
+                                                    1
                                                 )
                                             ) {
                                                 return prev;
@@ -1010,7 +1037,7 @@ function FeedbackContent() {
                                             return [
                                                 ...prev,
                                                 step +
-                                                    1,
+                                                1,
                                             ];
                                         }
                                     );
@@ -1018,7 +1045,7 @@ function FeedbackContent() {
 
                                     setStep(
                                         step +
-                                            1
+                                        1
                                     );
 
 
