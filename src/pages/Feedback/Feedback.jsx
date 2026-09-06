@@ -1,4 +1,3 @@
-
 import api from "../../api/api";
 
 import toast from "react-hot-toast";
@@ -217,6 +216,9 @@ function FeedbackContent() {
      *
      * This function is ONLY called after the
      * feedback form has successfully been submitted.
+     *
+     * recordingFolderId is generated ONCE for the
+     * complete feedback submission.
      * --------------------------------------------------
      */
 
@@ -225,6 +227,7 @@ function FeedbackContent() {
         fieldName,
         coverNumber,
         travelAgency,
+        recordingFolderId,
     }) => {
         const formData =
             new FormData();
@@ -275,6 +278,20 @@ function FeedbackContent() {
 
 
         /*
+         * Add the SAME recording folder ID
+         *
+         * Every recording belonging to this
+         * feedback submission receives this
+         * same folder ID.
+         */
+
+        formData.append(
+            "recordingFolderId",
+            recordingFolderId
+        );
+
+
+        /*
          * Add original remarks field name
          */
 
@@ -285,7 +302,7 @@ function FeedbackContent() {
 
 
         /*
-         * Send recording to production/development backend
+         * Send recording to backend
          *
          * VITE_API_URL should be:
          *
@@ -322,11 +339,17 @@ function FeedbackContent() {
     /*
      * --------------------------------------------------
      * Upload ALL pending recordings
+     *
+     * IMPORTANT:
+     *
+     * recordingFolderId is passed into this function
+     * and reused for EVERY recording.
      * --------------------------------------------------
      */
 
     const uploadAllRecordings = async (
-        data
+        data,
+        recordingFolderId
     ) => {
         const coverNumber =
             String(
@@ -366,6 +389,12 @@ function FeedbackContent() {
         console.log(
             "Recordings waiting for upload:",
             recordingFields
+        );
+
+
+        console.log(
+            "Folder ID for this submission:",
+            recordingFolderId
         );
 
 
@@ -413,6 +442,7 @@ function FeedbackContent() {
                     fieldName,
                     coverNumber,
                     travelAgency,
+                    recordingFolderId,
                 });
 
 
@@ -441,6 +471,47 @@ function FeedbackContent() {
     const submit = async (data) => {
         try {
             setLoading(true);
+
+
+            /*
+             * ------------------------------------------
+             * Generate ONE unique folder ID
+             * ------------------------------------------
+             *
+             * IMPORTANT:
+             *
+             * This is generated ONLY ONCE per
+             * feedback submission.
+             *
+             * It is NOT generated inside
+             * uploadRecording().
+             *
+             * Therefore all recordings from the same
+             * submission use the SAME folder.
+             */
+
+            const recordingFolderId =
+                `${Date.now()}-${Math.random()
+                    .toString(36)
+                    .substring(2, 8)}`;
+
+
+            console.log(
+                "================================="
+            );
+
+            console.log(
+                "NEW FEEDBACK SUBMISSION"
+            );
+
+            console.log(
+                "Recording Folder ID:",
+                recordingFolderId
+            );
+
+            console.log(
+                "================================="
+            );
 
 
             /*
@@ -536,8 +607,16 @@ function FeedbackContent() {
                 );
 
 
+                /*
+                 * IMPORTANT:
+                 *
+                 * Pass the SAME recordingFolderId
+                 * to the entire upload process.
+                 */
+
                 await uploadAllRecordings(
-                    data
+                    data,
+                    recordingFolderId
                 );
 
 
@@ -567,6 +646,7 @@ function FeedbackContent() {
 
 
             navigate("/success");
+
         } catch (error) {
             console.error(
                 "Submission error:",
@@ -586,6 +666,7 @@ function FeedbackContent() {
                 error.message ||
                 t.submissionFailed
             );
+
         } finally {
             setLoading(false);
         }
@@ -638,35 +719,51 @@ function FeedbackContent() {
             className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 py-20"
         >
             <div className="max-w-6xl mx-auto px-6">
+
                 {loading && (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+
                         <div className="flex flex-col items-center justify-center text-center px-8">
+
                             {/* Spinner */}
+
                             <div className="relative w-20 h-20 mb-6">
+
                                 <div className="absolute inset-0 rounded-full border-4 border-white/30"></div>
 
                                 <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-white animate-spin"></div>
+
                             </div>
 
+
                             {/* Main text */}
+
                             <h2 className="text-2xl font-bold text-white mb-2">
                                 Submitting your feedback...
                             </h2>
 
+
                             {/* Secondary text */}
+
                             <p className="text-sm text-white/80 max-w-sm">
                                 Please wait while we securely save your feedback.
                             </p>
 
+
                             {/* Prevent accidental interaction */}
+
                             <p className="text-xs text-white/60 mt-4">
                                 Please don't close or refresh this page.
                             </p>
+
                         </div>
+
                     </div>
                 )}
 
+
                 <FeedbackHeader />
+
 
                 <ProgressBar
                     step={step}
@@ -679,6 +776,7 @@ function FeedbackContent() {
                     onStepClick={async (
                         clickedStep
                     ) => {
+
                         if (
                             clickedStep ===
                             step
@@ -779,6 +877,7 @@ function FeedbackContent() {
                     }}
                 />
 
+
                 <FormProvider
                     {...methods}
                 >
@@ -793,14 +892,17 @@ function FeedbackContent() {
                             open={
                                 showModal
                             }
+
                             loading={
                                 loading
                             }
+
                             onCancel={() =>
                                 setShowModal(
                                     false
                                 )
                             }
+
                             onConfirm={() => {
                                 setShowModal(
                                     false
@@ -844,6 +946,7 @@ function FeedbackContent() {
                                 }
                                 className="w-30 rounded-xl px-4 py-3 border border-gray-300 bg-white text-gray-800 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-600"
                             >
+
                                 <option value="English">
                                     English
                                 </option>
@@ -851,6 +954,7 @@ function FeedbackContent() {
                                 <option value="Urdu">
                                     اردو
                                 </option>
+
                             </select>
 
                         </div>
@@ -926,6 +1030,7 @@ function FeedbackContent() {
                             }
 
                             previous={() => {
+
                                 if (
                                     step >
                                     1
@@ -944,9 +1049,12 @@ function FeedbackContent() {
                                         }
                                     );
                                 }
+
                             }}
 
+
                             next={async () => {
+
                                 let fields =
                                     stepValidation[
                                     step
@@ -957,6 +1065,7 @@ function FeedbackContent() {
                                     step ===
                                     1
                                 ) {
+
                                     const identifierType =
                                         watch(
                                             "identifierType"
@@ -967,6 +1076,7 @@ function FeedbackContent() {
                                         identifierType ===
                                         "coverNumber"
                                     ) {
+
                                         fields =
                                             [
                                                 "fullName",
@@ -975,10 +1085,12 @@ function FeedbackContent() {
                                                 "education",
                                                 "gender",
                                             ];
+
                                     } else if (
                                         identifierType ===
                                         "travelAgency"
                                     ) {
+
                                         fields =
                                             [
                                                 "fullName",
@@ -987,7 +1099,9 @@ function FeedbackContent() {
                                                 "education",
                                                 "gender",
                                             ];
+
                                     } else {
+
                                         fields =
                                             [
                                                 "fullName",
@@ -1020,10 +1134,12 @@ function FeedbackContent() {
                                     step <
                                     totalSteps
                                 ) {
+
                                     setCompletedSteps(
                                         (
                                             prev
                                         ) => {
+
                                             if (
                                                 prev.includes(
                                                     step +
@@ -1057,7 +1173,9 @@ function FeedbackContent() {
                                         }
                                     );
                                 }
+
                             }}
+
 
                             onSubmit={() =>
                                 setShowModal(
@@ -1067,6 +1185,7 @@ function FeedbackContent() {
                         />
 
                     </form>
+
                 </FormProvider>
 
             </div>
@@ -1082,4 +1201,3 @@ export default function Feedback() {
         </LanguageProvider>
     );
 }
-
