@@ -8,8 +8,8 @@ const router = express.Router();
 |--------------------------------------------------------------------------
 | Multer
 |--------------------------------------------------------------------------
-| Store the uploaded audio temporarily in memory.
-| We DO NOT save it to Render's filesystem.
+| Store audio temporarily in memory.
+| The file is uploaded directly to Cloudinary.
 |--------------------------------------------------------------------------
 */
 
@@ -45,7 +45,7 @@ const upload = multer({
 
 /*
 |--------------------------------------------------------------------------
-| Helper: sanitize folder name
+| Sanitize folder name
 |--------------------------------------------------------------------------
 */
 
@@ -58,7 +58,7 @@ const sanitizeFolderName = (value) => {
 
 /*
 |--------------------------------------------------------------------------
-| Helper: upload buffer to Cloudinary
+| Upload buffer to Cloudinary
 |--------------------------------------------------------------------------
 */
 
@@ -66,44 +66,51 @@ const uploadToCloudinary = ({
     buffer,
     folder,
     publicId,
-    mimetype,
     coverNumber,
     travelAgency,
     fieldName,
 }) => {
     return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-            {
-                resource_type: "video",
+        const uploadStream =
+            cloudinary.uploader.upload_stream(
+                {
+                    resource_type: "video",
 
-                folder,
+                    folder,
 
-                public_id: publicId,
+                    public_id: publicId,
 
-                overwrite: false,
+                    overwrite: false,
 
-                context: {
-                    coverNumber: coverNumber || "",
-                    travelAgency: travelAgency || "",
-                    fieldName: fieldName || "",
-                    uploadedFrom: "Hajj Feedback Portal",
+                    context: {
+                        coverNumber:
+                            coverNumber || "",
+
+                        travelAgency:
+                            travelAgency || "",
+
+                        fieldName:
+                            fieldName || "",
+
+                        uploadedFrom:
+                            "Hajj Feedback Portal",
+                    },
+
+                    tags: [
+                        "hajj-feedback",
+                        "voice-recording",
+                    ],
                 },
 
-                tags: [
-                    "hajj-feedback",
-                    "voice-recording",
-                ],
-            },
+                (error, result) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
 
-            (error, result) => {
-                if (error) {
-                    reject(error);
-                    return;
+                    resolve(result);
                 }
-
-                resolve(result);
-            }
-        );
+            );
 
         uploadStream.end(buffer);
     });
@@ -118,10 +125,11 @@ const uploadToCloudinary = ({
 router.post(
     "/upload",
     upload.single("audio"),
+
     async (req, res) => {
         try {
             /*
-             * Make sure audio exists
+             * Check audio
              */
 
             if (!req.file) {
@@ -156,47 +164,86 @@ router.post(
             ).trim();
 
             /*
-             * Cover Number takes priority.
-             * Travel Agency is fallback.
+             |--------------------------------------------------------------------------
+             | FOLDER LOGIC
+             |--------------------------------------------------------------------------
+             |
+             | 1. Cover Number available:
+             |       Use Cover Number
+             |
+             | 2. Cover Number NOT available:
+             |       Use Travel Agency + unique ID
+             |
+             |--------------------------------------------------------------------------
              */
 
-            const originalFolderName =
-                coverNumber || travelAgency;
+            let folderName;
 
-            /*
-             * Identifier is required
-             */
+            if (coverNumber) {
+                /*
+                 * Cover Number exists
+                 *
+                 * Example:
+                 * 123456
+                 */
 
-            if (!originalFolderName) {
+                folderName =
+                    sanitizeFolderName(
+                        coverNumber
+                    );
+
+            } else if (travelAgency) {
+                /*
+                 * No Cover Number
+                 *
+                 * Add timestamp + random number
+                 * so every submission gets
+                 * a separate folder.
+                 *
+                 * Example:
+                 * al_huda_tours-1757181234567-483921
+                 */
+
+                const agencyName =
+                    sanitizeFolderName(
+                        travelAgency
+                    );
+
+                const uniqueId =
+                    `${Date.now()}-${Math.floor(
+                        Math.random() * 1000000
+                    )}`;
+
+                folderName =
+                    `${agencyName}-${uniqueId}`;
+
+            } else {
+                /*
+                 * Neither Cover Number nor
+                 * Travel Agency exists.
+                 */
+
                 return res.status(400).json({
                     success: false,
+
                     message:
                         "Cover Number or Travel Agency is required.",
                 });
             }
 
             /*
-             * Safe folder name
-             */
-
-            const folderName =
-                sanitizeFolderName(
-                    originalFolderName
-                );
-
-            /*
-             * Cloudinary folder
-             *
-             * Example:
-             *
-             * hajj-feedback/recordings/ABC123
+             |--------------------------------------------------------------------------
+             | Cloudinary folder
+             |--------------------------------------------------------------------------
              */
 
             const cloudinaryFolder =
                 `hajj-feedback/recordings/${folderName}`;
 
             /*
-             * Generate unique public ID
+             |--------------------------------------------------------------------------
+             | Unique recording filename
+             |--------------------------------------------------------------------------
              */
 
             const publicId =
@@ -205,7 +252,9 @@ router.post(
                 )}`;
 
             /*
-             * Upload to Cloudinary
+             |--------------------------------------------------------------------------
+             | Logs
+             |--------------------------------------------------------------------------
              */
 
             console.log(
@@ -250,6 +299,12 @@ router.post(
                 "================================="
             );
 
+            /*
+             |--------------------------------------------------------------------------
+             | Upload
+             |--------------------------------------------------------------------------
+             */
+
             const result =
                 await uploadToCloudinary({
                     buffer: req.file.buffer,
@@ -259,9 +314,6 @@ router.post(
 
                     publicId,
 
-                    mimetype:
-                        req.file.mimetype,
-
                     coverNumber,
 
                     travelAgency,
@@ -270,14 +322,18 @@ router.post(
                 });
 
             /*
-             * Cloudinary URL
+             |--------------------------------------------------------------------------
+             | Cloudinary URL
+             |--------------------------------------------------------------------------
              */
 
             const secureUrl =
                 result.secure_url;
 
             /*
-             * Success
+             |--------------------------------------------------------------------------
+             | Success logs
+             |--------------------------------------------------------------------------
              */
 
             console.log(
@@ -301,6 +357,12 @@ router.post(
             console.log(
                 "================================="
             );
+
+            /*
+             |--------------------------------------------------------------------------
+             | Response
+             |--------------------------------------------------------------------------
+             */
 
             return res.status(200).json({
                 success: true,
