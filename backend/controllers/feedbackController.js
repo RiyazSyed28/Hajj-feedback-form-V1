@@ -1,8 +1,7 @@
+
 import pool from "../config/db.js";
-import { appendFeedback } from "../utils/googleSheetSync.js";
 
 import {
-
     insertPilgrim,
     insertDeparture,
     insertMina,
@@ -11,198 +10,346 @@ import {
     insertMadinah,
     insertReturnJourney,
     insertHealthGeneral
-
 } from "../models/feedbackModel.js";
 
+import {
+    appendFeedback
+} from "../utils/googleSheetSync.js";
 
 
-export const submitFeedback = async (req, res) => {
+export const submitFeedback = async (
+    req,
+    res
+) => {
 
     const data = req.body;
 
-    let connection;
+    let connection = null;
 
     try {
 
-        connection = await pool.getConnection();
+        console.log(
+            "===================================="
+        );
+
+        console.log(
+            "New feedback submission received"
+        );
+
+        console.log(
+            "===================================="
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Database connection
+        |--------------------------------------------------------------------------
+        */
+
+        connection =
+            await pool.getConnection();
+
 
         await connection.beginTransaction();
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | 1. Pilgrim
+        |--------------------------------------------------------------------------
+        */
 
-        /* ============================
-           1. Pilgrim Details
-        ============================ */
+        const submissionId =
+            await insertPilgrim(
+                connection,
+                data
+            );
 
-        const submissionId = await insertPilgrim(
 
-            connection,
-
-            data
-
+        console.log(
+            "Pilgrim inserted:",
+            submissionId
         );
 
 
-
-        /* ============================
-           2. Departure
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 2. Departure
+        |--------------------------------------------------------------------------
+        */
 
         await insertDeparture(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           3. Mina
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 3. Mina
+        |--------------------------------------------------------------------------
+        */
 
         await insertMina(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           4. Arafat
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 4. Arafat
+        |--------------------------------------------------------------------------
+        */
 
         await insertArafat(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           5. Dhul Hijjah
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 5. Dhul Hijjah
+        |--------------------------------------------------------------------------
+        */
 
         await insertDhulHijjah(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           6. Madinah
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 6. Madinah
+        |--------------------------------------------------------------------------
+        */
 
         await insertMadinah(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           7. Return Journey
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 7. Return Journey
+        |--------------------------------------------------------------------------
+        */
 
         await insertReturnJourney(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           8. Health + General
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | 8. Health + General
+        |--------------------------------------------------------------------------
+        */
 
         await insertHealthGeneral(
-
             connection,
-
             submissionId,
-
             data
-
         );
 
 
-
-        /* ============================
-           Commit Transaction
-        ============================ */
+        /*
+        |--------------------------------------------------------------------------
+        | COMMIT DATABASE
+        |--------------------------------------------------------------------------
+        */
 
         await connection.commit();
-        
-
-        await appendFeedback(data);
 
 
+        console.log(
+            "Database transaction committed successfully."
+        );
 
+        console.log(
+            "Submission ID:",
+            submissionId
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Release database connection
+        |--------------------------------------------------------------------------
+        */
+
+        connection.release();
+
+        connection = null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | SEND SUCCESS RESPONSE
+        |--------------------------------------------------------------------------
+        |
+        | IMPORTANT:
+        |
+        | The frontend receives 201 immediately.
+        |
+        | Google Sheets cannot change this response to 500.
+        |
+        */
 
         res.status(201).json({
 
             success: true,
 
-            message: "Feedback submitted successfully.",
+            message:
+                "Feedback submitted successfully.",
 
             submissionId
 
         });
 
-    }
 
-    catch (error) {
+        /*
+        |--------------------------------------------------------------------------
+        | GOOGLE SHEETS SYNC
+        |--------------------------------------------------------------------------
+        |
+        | This happens AFTER the database submission succeeded.
+        |
+        */
 
-        if (connection) {
-            await connection.rollback();
+        try {
+
+            await appendFeedback(
+                data
+            );
+
+
+            console.log(
+                "Google Sheets sync completed successfully."
+            );
+
+        } catch (sheetError) {
+
+            console.error(
+                "===================================="
+            );
+
+            console.error(
+                "GOOGLE SHEETS SYNC FAILED"
+            );
+
+            console.error(
+                "Message:",
+                sheetError.message
+            );
+
+            console.error(
+                sheetError
+            );
+
+            console.error(
+                "===================================="
+            );
+
         }
 
-        console.error("========== DATABASE ERROR ==========");
-        console.error(error);
-        console.error("Message:", error.message);
-        console.error("Code:", error.code);
-        console.error("SQL:", error.sql);
-        console.error("====================================");
+    } catch (error) {
 
-        res.status(500).json({
-            success: false,
-            message: error.message
-        });
+        /*
+        |--------------------------------------------------------------------------
+        | Rollback database
+        |--------------------------------------------------------------------------
+        */
 
-    }
+        if (connection) {
+
+            try {
+
+                await connection.rollback();
+
+            } catch (rollbackError) {
+
+                console.error(
+                    "Rollback failed:",
+                    rollbackError
+                );
+
+            }
+
+        }
 
 
+        /*
+        |--------------------------------------------------------------------------
+        | Log actual database error
+        |--------------------------------------------------------------------------
+        */
 
-    finally {
+        console.error(
+            "===================================="
+        );
+
+        console.error(
+            "DATABASE SUBMISSION FAILED"
+        );
+
+        console.error(
+            "Message:",
+            error.message
+        );
+
+        console.error(
+            "Code:",
+            error.code
+        );
+
+        console.error(
+            "SQL:",
+            error.sql
+        );
+
+        console.error(
+            "Full Error:",
+            error
+        );
+
+        console.error(
+            "===================================="
+        );
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Return 500
+        |--------------------------------------------------------------------------
+        */
+
+        if (!res.headersSent) {
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    error.message ||
+                    "Failed to submit feedback."
+
+            });
+
+        }
+
+    } finally {
 
         if (connection) {
 
@@ -212,6 +359,5 @@ export const submitFeedback = async (req, res) => {
 
     }
 
-
-
 };
+

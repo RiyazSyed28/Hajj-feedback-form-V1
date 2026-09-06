@@ -1,24 +1,41 @@
+
 import { google } from "googleapis";
-import path from "path";
 
-const auth = new google.auth.GoogleAuth({
+const credentialsString =
+    process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
 
-    keyFile: path.join(
-        process.cwd(), 
-        "config",
-        "service-account.json"
-    ),
+if (!credentialsString) {
+    console.warn(
+        "WARNING: GOOGLE_SERVICE_ACCOUNT_JSON is not configured."
+    );
+}
 
-    scopes: [
-        "https://www.googleapis.com/auth/spreadsheets"
-    ]
+let credentials = null;
 
-});
+if (credentialsString) {
+    try {
+        credentials = JSON.parse(credentialsString);
+    } catch (error) {
+        console.error(
+            "Invalid GOOGLE_SERVICE_ACCOUNT_JSON:",
+            error.message
+        );
+    }
+}
 
-export const sheets = google.sheets({
+const auth = credentials
+    ? new google.auth.GoogleAuth({
+          credentials,
+          scopes: [
+              "https://www.googleapis.com/auth/spreadsheets",
+          ],
+      })
+    : null;
 
-    version: "v4",
+export const sheets = auth
+    ? google.sheets({
+          version: "v4",
+          auth,
+      })
+    : null;
 
-    auth
-
-});
