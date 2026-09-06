@@ -9,7 +9,7 @@ const router = express.Router();
 | Multer
 |--------------------------------------------------------------------------
 | Store audio temporarily in memory.
-| The file is uploaded directly to Cloudinary.
+| The audio is uploaded directly to Cloudinary.
 |--------------------------------------------------------------------------
 */
 
@@ -129,13 +129,14 @@ router.post(
     async (req, res) => {
         try {
             /*
-             * Check audio
+             * Make sure audio exists
              */
 
             if (!req.file) {
                 return res.status(400).json({
                     success: false,
-                    message: "No audio file received.",
+                    message:
+                        "No audio file received.",
                 });
             }
 
@@ -156,7 +157,7 @@ router.post(
             ).trim();
 
             /*
-             * Get field name
+             * Get Field Name
              */
 
             const fieldName = String(
@@ -164,16 +165,34 @@ router.post(
             ).trim();
 
             /*
+             * Get Recording Folder ID
+             *
+             * This is generated ONCE by Feedback.jsx
+             * for the entire feedback submission.
+             */
+
+            const recordingFolderId = String(
+                req.body.recordingFolderId || ""
+            ).trim();
+
+            /*
              |--------------------------------------------------------------------------
              | FOLDER LOGIC
              |--------------------------------------------------------------------------
              |
-             | 1. Cover Number available:
-             |       Use Cover Number
+             | Cover Number exists:
              |
-             | 2. Cover Number NOT available:
-             |       Use Travel Agency + unique ID
+             |   recordings/12345/
              |
+             |
+             | Cover Number does NOT exist:
+             |
+             |   recordings/al_huda_tours-ABC123/
+             |
+             |
+             | The recordingFolderId is sent from
+             | Feedback.jsx and is the SAME for
+             | every recording in that submission.
              |--------------------------------------------------------------------------
              */
 
@@ -181,10 +200,7 @@ router.post(
 
             if (coverNumber) {
                 /*
-                 * Cover Number exists
-                 *
-                 * Example:
-                 * 123456
+                 * Cover Number has highest priority.
                  */
 
                 folderName =
@@ -192,16 +208,15 @@ router.post(
                         coverNumber
                     );
 
-            } else if (travelAgency) {
+            } else if (
+                travelAgency &&
+                recordingFolderId
+            ) {
                 /*
-                 * No Cover Number
+                 * No Cover Number.
                  *
-                 * Add timestamp + random number
-                 * so every submission gets
-                 * a separate folder.
-                 *
-                 * Example:
-                 * al_huda_tours-1757181234567-483921
+                 * Use Travel Agency + the
+                 * submission's unique folder ID.
                  */
 
                 const agencyName =
@@ -210,19 +225,28 @@ router.post(
                     );
 
                 const uniqueId =
-                    `${Date.now()}-${Math.floor(
-                        Math.random() * 1000000
-                    )}`;
+                    sanitizeFolderName(
+                        recordingFolderId
+                    );
 
                 folderName =
                     `${agencyName}-${uniqueId}`;
 
-            } else {
+            } else if (travelAgency) {
                 /*
-                 * Neither Cover Number nor
-                 * Travel Agency exists.
+                 * Fallback in case old frontend
+                 * doesn't send recordingFolderId.
+                 *
+                 * This should normally not happen
+                 * after the frontend is updated.
                  */
 
+                folderName =
+                    sanitizeFolderName(
+                        travelAgency
+                    );
+
+            } else {
                 return res.status(400).json({
                     success: false,
 
@@ -232,18 +256,20 @@ router.post(
             }
 
             /*
-             |--------------------------------------------------------------------------
-             | Cloudinary folder
-             |--------------------------------------------------------------------------
+             * Cloudinary folder
              */
 
             const cloudinaryFolder =
                 `hajj-feedback/recordings/${folderName}`;
 
             /*
-             |--------------------------------------------------------------------------
-             | Unique recording filename
-             |--------------------------------------------------------------------------
+             * Unique filename for THIS recording.
+             *
+             * Important:
+             *
+             * The filename is unique,
+             * BUT the folder remains the SAME
+             * for all recordings from this submission.
              */
 
             const publicId =
@@ -252,9 +278,7 @@ router.post(
                 )}`;
 
             /*
-             |--------------------------------------------------------------------------
-             | Logs
-             |--------------------------------------------------------------------------
+             * Logs
              */
 
             console.log(
@@ -273,6 +297,11 @@ router.post(
             console.log(
                 "Travel Agency:",
                 travelAgency || "N/A"
+            );
+
+            console.log(
+                "Recording Folder ID:",
+                recordingFolderId || "N/A"
             );
 
             console.log(
@@ -300,14 +329,13 @@ router.post(
             );
 
             /*
-             |--------------------------------------------------------------------------
-             | Upload
-             |--------------------------------------------------------------------------
+             * Upload to Cloudinary
              */
 
             const result =
                 await uploadToCloudinary({
-                    buffer: req.file.buffer,
+                    buffer:
+                        req.file.buffer,
 
                     folder:
                         cloudinaryFolder,
@@ -322,18 +350,14 @@ router.post(
                 });
 
             /*
-             |--------------------------------------------------------------------------
-             | Cloudinary URL
-             |--------------------------------------------------------------------------
+             * Cloudinary URL
              */
 
             const secureUrl =
                 result.secure_url;
 
             /*
-             |--------------------------------------------------------------------------
-             | Success logs
-             |--------------------------------------------------------------------------
+             * Success logs
              */
 
             console.log(
@@ -359,9 +383,7 @@ router.post(
             );
 
             /*
-             |--------------------------------------------------------------------------
-             | Response
-             |--------------------------------------------------------------------------
+             * Response
              */
 
             return res.status(200).json({
@@ -371,6 +393,8 @@ router.post(
                     "Recording uploaded successfully.",
 
                 folderName,
+
+                recordingFolderId,
 
                 coverNumber,
 
