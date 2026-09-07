@@ -38,4 +38,19 @@ pool.getConnection()
         console.error("Message:", error.message);
     });
 
+const keepDatabaseAlive = async () => {
+    try {
+        await pool.query("SELECT 1");
+        console.log("✅ MySQL keep-alive successful");
+    } catch (error) {
+        console.error("❌ MySQL keep-alive failed:", error.message);
+    }
+};
+
+// Run immediately
+keepDatabaseAlive();
+
+// Then every 10 minutes
+setInterval(keepDatabaseAlive, 10 * 60 * 1000);
+
 export default pool;
