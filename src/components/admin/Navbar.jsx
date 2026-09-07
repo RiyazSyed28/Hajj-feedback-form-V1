@@ -11,8 +11,24 @@ export default function Navbar() {
 
     const navigate = useNavigate();
 
-    const admin = JSON.parse(localStorage.getItem("admin"));
+    const getStoredAdmin = () => {
+        try {
+            const storedAdmin = localStorage.getItem("admin");
 
+            if (!storedAdmin || storedAdmin === "undefined") {
+                return null;
+            }
+
+            return JSON.parse(storedAdmin);
+        } catch (error) {
+            console.error("Invalid admin data in localStorage:", error);
+
+            localStorage.removeItem("admin");
+            return null;
+        }
+    };
+
+    const admin = getStoredAdmin();
     const today = new Date().toLocaleDateString("en-IN", {
         weekday: "long",
         day: "numeric",
@@ -26,8 +42,8 @@ export default function Navbar() {
         hour < 12
             ? "Good Morning"
             : hour < 17
-            ? "Good Afternoon"
-            : "Good Evening";
+                ? "Good Afternoon"
+                : "Good Evening";
 
     const logout = () => {
 
